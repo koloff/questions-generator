@@ -4,6 +4,7 @@ import {inject, observer} from 'mobx-react';
 import {RouteComponentProps} from 'react-router-dom';
 import {Button, Divider, Form, Grid, Header, Icon, Input, Segment, TextArea} from 'semantic-ui-react';
 import GenerationStore from '../../stores/GenerationStore';
+import NextButton from './NextButton';
 
 interface Props extends RouteComponentProps {
   rootStore: RootStore
@@ -37,9 +38,11 @@ export default class AddText extends React.Component<Props> {
         <Header.Subheader>Just link the resource below and the system will extract the text</Header.Subheader>
       </Header>
       <Divider hidden/>
-      <Input onChange={(event, data) => {
-        this.setState({url: data})
-      }} fluid size={'huge'} icon='linkify' iconPosition='left' placeholder='Resource link'/>
+      <Input
+        onChange={(event: any, data: any) => {
+          this.generationStore.inputs.url = data.value;
+        }}
+        fluid size={'huge'} icon='linkify' iconPosition='left' placeholder='Resource link'/>
     </>
   }
 
@@ -51,42 +54,76 @@ export default class AddText extends React.Component<Props> {
         <Header.Subheader>Paste the whole resource here and we will take care of it</Header.Subheader>
       </Header>
       <Divider hidden/>
-      <Form  onChange={(event, data) => {
-        this.setState({url: data})
-      }}>
-        <TextArea placeholder='Paste the text here'/>
+      <Form>
+        <TextArea
+          placeholder='Paste the text here'
+          onChange={(event: any, data: any) => {
+            this.generationStore.inputs.text = data.value;
+          }}/>
       </Form>
     </>
   }
 
+  async onNextPress() {
+    let nextKey = GenerationStore.generationSteps[1].key;
+
+    if (this.generationStore.finishedSteps.has(this.stepInfo.key)) {
+      this.generationStore.setActiveStep(nextKey);
+      return this.props.history.push(`${nextKey}`);
+    }
+
+    await this.generationStore.generateQuestions();
+    this.generationStore.finishStep(GenerationStore.generationSteps[0].key);
+    this.generationStore.finishStep(GenerationStore.generationSteps[1].key);
+    return this.props.history.push(`${nextKey}`);
+  };
+
   render() {
-    return <Segment secondary textAlign={'center'}>
-      <Button.Group widths={2} size={'huge'}>
-        <Button
-          primary={this.state.selectedOption === 'url'}
-          onClick={() => {
-            this.setState({selectedOption: 'url'})
-          }}
-        >
-          URL
-        </Button>
-        <Button.Or/>
-        <Button
-          primary={this.state.selectedOption === 'text'}
-          onClick={() => {
-            this.setState({selectedOption: 'text'})
-          }}
-        >Plain Text
-        </Button>
-      </Button.Group>
 
-      {
-        this.state.selectedOption === 'url'
-          ? this.renderURLOption()
-          : this.renderTextOption()
+    const isNextDisabled = () => {
+      if (this.generationStore.finishedSteps.has(this.stepInfo.key)) {
+        return false;
       }
+      if (this.generationStore.selectedTextInputOption === 'url') {
+        return !this.generationStore.inputs.url
+      }
+      if (this.generationStore.selectedTextInputOption === 'text') {
+        return !this.generationStore.inputs.text
+      }
+      return true;
+    };
 
 
-    </Segment>
+    return <>
+      <Segment loading={this.generationStore.loading} secondary textAlign={'center'}>
+        <Button.Group widths={2} size={'huge'}>
+          <Button
+            primary={this.generationStore.selectedTextInputOption === 'url'}
+            onClick={() => {
+              this.generationStore.selectedTextInputOption = 'url';
+            }}
+          >
+            URL
+          </Button>
+          <Button.Or/>
+          <Button
+            primary={this.generationStore.selectedTextInputOption === 'text'}
+            onClick={() => {
+              this.generationStore.selectedTextInputOption = 'text';
+            }}
+          >Plain Text
+          </Button>
+        </Button.Group>
+
+        {
+          this.generationStore.selectedTextInputOption === 'url'
+            ? this.renderURLOption()
+            : this.renderTextOption()
+        }
+
+      </Segment>
+      <Divider hidden/>
+      <NextButton loading={this.generationStore.loading} onClick={this.onNextPress.bind(this)} disabled={isNextDisabled()}/>
+    </>
   }
 }
