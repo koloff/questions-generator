@@ -6,6 +6,7 @@ import {Route, RouteComponentProps} from 'react-router-dom';
 
 import AddText from './AddText';
 import Options from './Options';
+import GenerationStore from '../../stores/GenerationStore';
 
 
 interface Props extends RouteComponentProps {
@@ -13,19 +14,19 @@ interface Props extends RouteComponentProps {
 }
 
 @inject((root: any) => ({
-  rootStore: root.store.rootStore as RootStore
+  rootStore: root.store as RootStore
 }))
 @observer
 export default class StepsContainer extends React.Component<Props> {
-  state = {
-    activeStepUrl: ''
-  };
+  private generationStore: GenerationStore;
+
+  constructor(props: any) {
+    super(props);
+    this.generationStore = this.props.rootStore.generationStore;
+  }
 
   componentDidMount() {
-    console.log(this.props);
-    this.setState({
-      activeStepUrl: this.props.location.pathname
-    })
+    this.generationStore.setActiveStrep(GenerationStore.generationSteps[0].key);
   }
 
   onStepPress(stepKey: string) {
@@ -33,42 +34,26 @@ export default class StepsContainer extends React.Component<Props> {
   };
 
   render() {
-    const steps = [
-      {
-        url: '/generate/text',
-        key: 'text',
-        icon: 'truck',
-        title: 'Text',
-        description: 'Add text or URL',
-      },
-      {
-        url: '/generate/options',
-        key: 'options',
-        icon: 'payment',
-        title: 'Options',
-        description: 'Configure your questions',
-      },
-      {
-        url: '/generate/result',
-        key: 'result',
-        icon: 'info',
-        title: 'Result',
-        description: 'Edit and save your test',
+    const steps = GenerationStore.generationSteps.map((step) => {
+
+      let active = step.url === this.props.location.pathname;
+      let completed =  this.generationStore.finishedSteps.has(step.key);
+      return {
+        ...step,
+        link: true,
+        onClick: () => {
+          this.onStepPress(step.key)
+        },
+        active: active,
+        completed: completed,
+        disabled: !active && !completed
       }
-    ].map((step) => ({
-      ...step,
-      link: true,
-      onClick: () => {
-        this.onStepPress(step.key)
-      },
-      active: step.url === this.props.location.pathname
-    }));
+    });
 
     return <div>
       <Step.Group widths={3} items={steps}/>
-      <Route path={'/generate/text'} component={AddText}/>
-      <Route path={'/generate/options'} component={Options}/>
+      <Route path={`${this.props.match.url}/${GenerationStore.generationSteps[0].key}`} component={AddText}/>
+      <Route path={`${this.props.match.url}/${GenerationStore.generationSteps[1].key}`} component={Options}/>
     </div>
-
   }
 }

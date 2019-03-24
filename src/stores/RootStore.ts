@@ -1,7 +1,9 @@
+import GenerationStore from './GenerationStore';
+
 export default class RootStore {
-  public a: number;
+  public generationStore: GenerationStore;
 
   constructor() {
-    this.a = 6;
+    this.generationStore = new GenerationStore();
   }
 }
